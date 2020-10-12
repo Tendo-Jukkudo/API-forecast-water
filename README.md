@@ -1,8 +1,8 @@
-# API-forecast-water
-Model forecast API use model time series deep learning 
-Liberary Package:
-pip install tensorflow 
-pip install keras
-pip install pandas 
-pip install numpy
-pip install Flask
+# API forecast water
+|**Liberary Package**|Model forecast API use model time series deep learning|
+| ---------- |-------------------|
+| **Tensorflow** | pip install tensorflow|
+| **Keras** | pip install keras|
+| **Pandas**| pip install pandas|
+| **Numpy**| pip install numpy| 
+| **Flask**| pip install Flask| 
