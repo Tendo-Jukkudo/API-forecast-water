@@ -179,6 +179,8 @@ def run_prediction(type_feature,nb_past,nb_future,path_model,url_get,mean_std=Fa
     Now_time = datetime[datetime.shape[0]-1][0]
     data_json = datatime_json(Now_time,data_predict)
     output = np.array(data_json)
+    error_date = check_datestep(datetime)
   else:
-    output = ["data error",nb_error]
-  return output
+    error_date = check_datestep(datetime)
+    output = "Error data input"
+  return output,error_date
