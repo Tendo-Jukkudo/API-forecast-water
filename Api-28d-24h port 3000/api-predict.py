@@ -20,6 +20,8 @@ app = Flask(__name__)
 @app.route('/sm/ai_run',methods=['GET'])
 def returnPredict():
     run = request.args.get('run', default = 0, type = int)
+    date = request.args.get('date', default = '2020-01-01', type = str)
+    url_getdata = (url_get+'&date='+date)
     if(run == 1):
         in_file = open("data_predict.json", "r")
         data = json.load(in_file) 
@@ -28,10 +30,10 @@ def returnPredict():
         Pressure = data['Pressure']
         forecast_flow,error_date = model_predict.run_prediction(type_feature=1,
                                                                 nb_past=past_history,nb_future=future_target,
-                                                                path_model=path_model_flow,url_get=url_get,mean_std=True)
+                                                                path_model=path_model_flow,url_get=url_getdata,mean_std=True)
         forecast_p,error_date = model_predict.run_prediction(type_feature=0,
                                                              nb_past=past_history,nb_future=future_target,
-                                                             path_model=path_model_p,url_get=url_get,mean_std=False)
+                                                             path_model=path_model_p,url_get=url_getdata,mean_std=False)
         if forecast_flow[len(forecast_flow)-1][0] != flow[len(flow)-1][0]:
             for i in forecast_flow:
                 flow.append(i)
