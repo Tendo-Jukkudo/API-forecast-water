@@ -1,0 +1,22 @@
+{
+    "infor": [
+        {
+            "id": "F98420",
+            "model": "watermodel",
+            "lin": 28.0,
+            "lout": 7.0,
+            "weightfolder": "model/F98420/20201213195029",
+            "traindate": "2020-12-13",
+            "index": "20201213195029"
+        },
+        {
+            "id": "F98420",
+            "model": "watermodel",
+            "lin": 28.0,
+            "lout": 1.0,
+            "weightfolder": "model/F98420/20201213230918",
+            "traindate": "2020-12-13",
+            "index": "20201213230918"
+        }
+    ]
+}

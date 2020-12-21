@@ -49,19 +49,19 @@ def check_datestep(data_time,f_ex):
     ct_2 = 0
     for e in data_time[i-1][0]:
       ct_1 = ct_1 + 1
-      if (e == '-'):
+      if (e == '/'):
         ct_2=ct_2+1
         if (ct_2 == 2):
-          time_1 = data_time[i-1][0][ct_1-8:ct_1+2]
+          time_1 = data_time[i-1][0][ct_1-6:ct_1+4]
           # print(*["time_after:",time_1])
     ct_3 = 0
     ct_4 = 0
     for e in data_time[i][0]:
       ct_3 = ct_3 + 1
-      if (e == '-'):
+      if (e == '/'):
         ct_4=ct_4+1
         if (ct_4 == 2):
-          time_2 = data_time[i][0][ct_3-8:ct_3+2]
+          time_2 = data_time[i][0][ct_3-6:ct_3+4]
           # print(*["time_last:",time_2])
     if (time_2 != time_1):
       if (ct < sum_date or ct > sum_date):
@@ -94,15 +94,33 @@ def array_append(dataset,data_append):
       data_new.append(data_append[i])
   return data_new
 
-def check_datetime(url_data,f_ex):
+def check_datetime(url_data,f_ex,asixs):
     e_date=[]
     for i in url_data:
         data_load = pd.read_csv(i)
         feature_name = list(data_load.columns)
         datetime = data_load[feature_name[1:2]]
         datetime = np.array(datetime)
+        if(asixs == "desc"):
+          datetime = array_reverse(datetime)
         error_date = check_datestep(datetime,f_ex)
         error_date = error_date[1:]
         for e in range(0,len(error_date)):
             e_date.append(error_date[e])
     return e_date
+
+def accuracy_score(val_data,nb_test,model,mean,std,type_data,mean_std=False):
+  score_list = []
+  if(mean_std==True):
+    for x, y in val_data.take(nb_test):
+      y_true = float(y[0]*std[type_data] + mean[type_data])
+      y_predict = (model.predict(x)[0][0])*std[type_data] + mean[type_data]
+      score = abs(y_true-y_predict)/y_true
+      score_list.append(round(score,3))
+  else:
+    for x, y in val_data.take(nb_test):
+      y_true = float(y[0])
+      y_predict = (model.predict(x)[0][0])
+      score = abs(y_true-y_predict)/y_true
+      score_list.append(round(score,3))
+  return score_list

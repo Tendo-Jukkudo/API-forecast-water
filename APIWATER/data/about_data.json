@@ -1,0 +1,49 @@
+{
+    "infor": [
+        {
+            "id": "F98420",
+            "predictdate": "2020-10-10",
+            "model": "watermodel.py",
+            "lin": 28.0,
+            "lout": 7.0,
+            "weightfolder": "model/F98420/20201213195029",
+            "status": "done"
+        },
+        {
+            "id": "F98420",
+            "predictdate": "2020-10-09",
+            "model": "watermodel.py",
+            "lin": 28.0,
+            "lout": 1.0,
+            "weightfolder": "model/F98420/20201213230918",
+            "status": "done"
+        },
+        {
+            "id": "F98420",
+            "predictdate": "2020-10-08",
+            "model": "watermodel.py",
+            "lin": 28.0,
+            "lout": 7.0,
+            "weightfolder": "model/F98420/20201210145745",
+            "status": "done"
+        },
+        {
+            "id": "F98420",
+            "predictdate": "2020-10-07",
+            "model": "watermodel.py",
+            "lin": 28.0,
+            "lout": 7.0,
+            "weightfolder": "model/F98420/20201210145745",
+            "status": "done"
+        },
+        {
+            "id": "F98420",
+            "predictdate": "2020-10-06",
+            "model": "watermodel.py",
+            "lin": 28.0,
+            "lout": 7.0,
+            "weightfolder": "model/F98420/20201210145745",
+            "status": "done"
+        }
+    ]
+}

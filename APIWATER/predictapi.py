@@ -19,7 +19,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 some_queue = None
 
-frequency_ex = 15
 url_model = 'http://hbqweblog.com/ai/model/watermodel.zip'
 url_get = 'http://hbqweblog.com/DAKWACO/stock/ai_get_data.php?'
 url_csv = 'http://hbqweblog.com/ai/tdata/'
@@ -88,70 +87,174 @@ def add_const(number, const=0):
     return number+const
 
 class FractionsResource(Resource):
+
+    @APP.route('/sm',methods=['GET'])
+    def index(): 
+        return "Welcome to AI HBQsolution"
+
+    @APP.route('/',methods=['GET'])
+    def index1(): 
+        return "Welcome to AI HBQsolution"
+
+    @APP.route('/sm/ai_view',methods=['GET'])
+    def returnView():
+        try:
+            date = request.args.get('date', default = '', type = str)
+            id_device = request.args.get('ID', default = '', type = str)
+
+            if(id_device == '' and len(date) > 0):
+                return 'Please enter the ID'
+
+            data_info_json_file = "data/about_data.json"
+            with open(data_info_json_file) as json_file: 
+                data = json.load(json_file)
+                temp = data['infor']
+            if(date == '' and id_device == ''):
+                return data
+            if(len(date) > 0):
+                data_out = [data_ for data_ in temp if data_['predictdate'] == date][0]
+                file_json_date = data_out['predictdate']
+                path_data = "data/"+id_device+"/"+file_json_date+".json"
+                with open(path_data) as json_file: 
+                    data_predict = json.load(json_file)
+                return jsonify({'output':data_predict})
+            if(len(id_device) > 0):
+                data_out = [data_ for data_ in temp if data_['id'] == id_device]
+                return jsonify({'infor':data_out})  
+        except:
+            return "System Error 404"
+    
+    @APP.route('/sm/ai_analyze',methods=['GET'])  
+    def return_ws():
+        try:
+            id_device = request.args.get('ID', default = '', type = str)
+            index = request.args.get('index', default = '', type = str)
+
+            training_info_json_file = "model/about_model.json"
+
+            with open(training_info_json_file) as json_file: 
+                data = json.load(json_file)
+                temp = data['infor']
+            if(id_device == ''):
+                return data
+            elif(len(index) > 0):
+                datas = [data_ for data_ in temp if data_['index'] == index][0]
+                weightfolder = datas['weightfolder']+"/"+"loss_data.json"
+                with open(weightfolder) as json_file: 
+                    loss_infor = json.load(json_file)
+                return loss_infor
+            else:
+                datas = [data_ for data_ in temp if data_['id'] == id_device]
+                return jsonify({'infor':datas})  
+        except:
+            return "System Error 404"
+
     @APP.route('/sm/ai_run',methods=['GET'])
     def returnPredict():
         predict = request.args.get('run', default = 0, type = int)
         id_device = request.args.get('ID', default = '', type = str)
-        date = request.args.get('date', default = '2020-01-01', type = str)
-        date_w = request.args.get('datew', default = '2020-01-01', type = str)
-        lin = request.args.get('lin', default = 0, type = float)
-        lout = request.args.get('lout', default = 0, type = float)
-        url_getdata = (url_get+'&dev_id='+id_device+'&date='+date)
+        date = request.args.get('date', default = '', type = str)
+        index = request.args.get('index', default = '', type = str)
 
-        io = str(int(lin))+"-"+str(lout)
+        training_info_json_file = "model/about_model.json"
+        path_id_device = 'data/'+id_device
+        check_id_device = os.path.exists(path_id_device)
 
-        path_info = "model/W"+id_device+"/"+str(int(lin))+"-"+str(lout)+"/"+date_w+"/loss_data.json"
-        check_info = os.path.exists(path_info)
-        check_model = os.path.exists(path_model)
-
-        if(check_model==False):
-            download_url(url_model,path_model)
-
-        if(check_info==False):
+        if(check_id_device == False):
             return "Device ID "+id_device+" not be trainning"
         else:
-            in_file = open(path_info, "r")
-            data_out = json.load(in_file)
-            data_out = json.loads(data_out)
+            url_getdata = url_get+'&dev_id='+id_device+'&date='+date
+            url_getlink = url_csv+id_device+"/"
+            data_link = url_getlink+"datalink.json"
+            r = requests.get(data_link)
+            data_links = r.json()
+            sampling = data_links["sampling"]
+                
+            with open(training_info_json_file) as json_file: 
+                data = json.load(json_file)
+                temp = data['infor']
 
-            mean_value = data_out['mean']
-            std_value = data_out['std']
+            datas = [data_ for data_ in temp if data_['index'] == index][0]
+            lin = datas['lin']
+            lout = datas['lout']
+            path_info = datas['weightfolder']+"/"+"loss_data.json"
 
-            path_w_f = "model/W"+id_device+"/"+str(int(lin))+"-"+str(lout)+"/"+date_w+"/WF.h5"
-            path_w_p = "model/W"+id_device+"/"+str(int(lin))+"-"+str(lout)+"/"+date_w+"/WP.h5"
+            in_file = open(path_info, "r") # open file loss_data
+            loss_data = json.load(in_file) 
+            loss_data = json.loads(loss_data)
+
+            mean_value = loss_data['mean']
+            std_value = loss_data['std']
+
+            path_w_f = datas['weightfolder']+"/WF.h5"
+            path_w_p = datas['weightfolder']+"/WP.h5"
             parent_dir = "data/"
             directory = id_device+"/"
             path = os.path.join(parent_dir,directory)
             check = os.path.exists(path)
             if(check == False):
                 os.mkdir(path)
-            directory_c = io+"/"
-            path_c = os.path.join(path,directory_c)
-            check_c = os.path.exists(path_c)
-            if(check_c == False):
-                os.mkdir(path_c)
 
             path_f = date+".json"
 
-            path_save = os.path.join(path_c,path_f)
+            path_save = os.path.join(path,path_f)
+
+            name_model_json_file = "model/model_name.json"
+
+            with open(name_model_json_file) as json_file: 
+                data = json.load(json_file)
+                model_name = data["name"]
 
             if(predict == 1):
+                data_info_json_file = "data/about_data.json"
+                path_id = "model/"+id_device
+                path_date_predict = "data/"+id_device+"/"+date+".json"
+                check_info_json_file = os.path.exists(data_info_json_file)
+                status = "running"
+                if(check_info_json_file== False):
+                    data = {'infor':[{'id':id_device,'predictdate':date,'model':model_name,'lin':lin,'lout':lout,'weightfolder':datas['weightfolder'],"status":status}]}
+                    write_json(data,data_info_json_file) 
+                else:
+                    check_id = os.path.exists(path_id)
+                    check_date_predict = os.path.exists(path_date_predict)
+                    if(check_id == False or check_date_predict == False):
+                        with open(data_info_json_file) as json_file: 
+                            data = json.load(json_file)
+                            temp = data['infor'] 
+                            type_file = {'id':id_device,'predictdate':date,'model':model_name,'lin':lin,'lout':lout,'weightfolder':datas['weightfolder'],"status":status}
+                            temp.append(type_file) 
+                        write_json(data,data_info_json_file)
+                    if(check_id == True or check_date_predict == True):
+                        with open(data_info_json_file) as json_file: 
+                            data = json.load(json_file)
+                            temp = data['infor'] 
+                            get_status = [data_ for data_ in temp if data_['predictdate'] == date][0]
+                            get_status['status'] = status
+                            get_status['weightfolder'] = datas['weightfolder']
+                            get_status['lin'] = lin
+                            get_status['lout'] = lout
+                        write_json(data,data_info_json_file)
+
                 forecast_flow,error_date = model_predict.run_prediction(type_feature=1,
-                                                                his=lin,target=lout,
-                                                                path_weight=path_w_f,url_get=url_getdata,
-                                                                means=mean_value,f_ex=frequency_ex,stds=std_value,mean_std=True)
+                                                                    his=lin,target=lout,
+                                                                    path_weight=path_w_f,url_get=url_getdata,
+                                                                    means=mean_value,f_ex=sampling,stds=std_value,mean_std=True)
                 forecast_p,error_date = model_predict.run_prediction(type_feature=0,
-                                                                his=lin,target=lout,
-                                                                path_weight=path_w_p,url_get=url_getdata,
-                                                                means=mean_value,f_ex=frequency_ex,stds=std_value,mean_std=False)
+                                                                    his=lin,target=lout,
+                                                                    path_weight=path_w_p,url_get=url_getdata,
+                                                                    means=mean_value,f_ex=sampling,stds=std_value,mean_std=False)
+                status = "done"
+                with open(data_info_json_file) as json_file: 
+                    data = json.load(json_file)
+                    temp = data['infor'] 
+                    get_status = [data_ for data_ in temp if data_['predictdate'] == date][0]
+                    get_status['status'] = status
+                write_json(data,data_info_json_file)
 
                 data_out = json.dumps({'status':date,'error':error_date,'flow':forecast_flow,'Pressure':forecast_p},cls=NumpyEncoder) 
                 out_file = open(path_save, "w")
                 json.dump(data_out, out_file, indent = 6)    
-            else:
-                in_file = open(path_save, "r")
-                data_out = json.load(in_file) 
-            return jsonify({'output':data_out})
+        return "OK"
 
 if __name__ == "__main__":
 

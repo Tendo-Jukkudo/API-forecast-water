@@ -51,7 +51,7 @@ def run_prediction(type_feature,his,target,path_weight,url_get,f_ex,means,stds,m
   datetime = df[feature_name[0:1]]
   datetime = np.array(datetime)
   nb_error = len(d_f.check_datestep(datetime,f_ex))
-  if(nb_error == 1):
+  if(nb_error == 0):
     data_predict = futures_predict(input_data=uni_data,type_data=type_feature,
                                     path_weights=path_weight,
                                     past_history=int(nb_past),future_target=int(nb_future),
