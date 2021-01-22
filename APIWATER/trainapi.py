@@ -15,20 +15,20 @@ from threading import Thread
 import threading
 import time
 import functools
+import logging
 import numpy as np
 import model_train
 import requests
+import zipfile 
+import ftplib 
 import os
 
 some_queue = None
 
 url_model = 'http://hbqweblog.com/ai/model/'
 url_get = 'http://hbqweblog.com/DAKWACO/stock/ai_get_data.php?'
-url_csv = 'http://hbqweblog.com/ai/tdata/'
+url_csv = 'http://sovigaz.hbqweblog.com/ai/tdata/'
 path_model = 'watermodel.py'
-global nb_training
-# gpus_ = bool(sys.argv[1])
-# memory_gpu = int(sys.argv[2])
 train_status = False
 
 def download_url(url, save_path, chunk_size=128):
@@ -47,6 +47,34 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+def zipit(folders, zip_filename):
+    zip_file = zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED)
+
+    for folder in folders:
+        for dirpath, dirnames, filenames in os.walk(folder):
+            for filename in filenames:
+                zip_file.write(
+                    os.path.join(dirpath, filename),
+                    os.path.relpath(os.path.join(dirpath, filename), os.path.join(folders[0], '../..')))
+
+    zip_file.close()
+
+def send_ftp(folders_path,zipname,FTP_HOST,FTP_USER,FTP_PASS):
+    # //Nen folder folder_path
+    zipit(folders_path, zipname)
+    # //dang nhap tai khoan FTP
+    ftp = ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASS)
+    # force UTF-8 encoding
+    ftp.encoding = "utf-8"
+    # //send file nen
+    filename = "some_file.txt"
+    with open(zipname, "rb") as file:
+        # use FTP's STOR command to upload the file
+        ftp.storbinary(f"STOR {zipname}", file)
+    # //return ketqua
+    os.remove(zipname)
+
+
 
 APP = Flask(__name__)
 API = Api(APP)
@@ -55,8 +83,9 @@ CORS(APP)
 @APP.route('/sm/restart', methods=['GET'], endpoint='start_flaskapp')
 def restart():
     try:
+        logging.info("Training process stopped")
         path_task_manager = "model/task_manage.json"
-        json_file =  open(path_task_manager)
+        json_file = open(path_task_manager)
         data = json.load(json_file)
         data['status'] = "stopped"
         data['ai_status'] = False
@@ -124,7 +153,18 @@ class FractionsResource(Resource):
             return infor_status
         except:
             return "Error System 404"
-        
+
+    @APP.route('/sm/ai_console',methods=['GET'])
+    def ai_console():
+        train_status = open("status/train_status.log","r")
+        return "<pre>"+train_status.read()+"</pre>"
+
+    @APP.route('/sm/ai_model',methods=['GET'])
+    def ai_model():
+        model_status = open("status/model.log","r")
+        return "<pre>"+model_status.read()+"</pre>"
+
+
     @APP.route('/sm/ai_learning',methods=['GET'])
     def returnTrain():
         global train_status
@@ -134,22 +174,10 @@ class FractionsResource(Resource):
             lin = request.args.get('lin', default = 0, type = float)
             lout = request.args.get('lout', default = 0, type = float)
             gpus_ = request.args.get('GPU', default = 0, type = int)
+            batch_size = request.args.get('batchsize', default = 32, type = int)
             memory_gpu = request.args.get('memory', default = 1028, type = int)
             gpus_ = bool(gpus_)
 
-            named_tuple = time.localtime() 
-            datetime = time.strftime("%Y-%m-%d", named_tuple)
-            index = time.strftime("%Y%m%d%H%M%S", named_tuple)
-            start_time = time.strftime("%Y-%m-%d, %H:%M:%S", named_tuple)
-
-            name_model_json_file = "model/model_name.json"
-
-            with open(name_model_json_file) as json_file: 
-                data = json.load(json_file)
-                model_name = data["name"]
-
-            path = "model/"+id_device+"/"+str(index)+"/loss_data.json"
-            path_weightfolder = "model/"+id_device+"/"+str(index)
             url_getdata = url_csv+id_device+"/"
 
             try:
@@ -166,33 +194,55 @@ class FractionsResource(Resource):
             if(lin==0):
                 return jsonify({'error': "How much past data do you want?"})
 
-            data_link = url_getdata+"datalink.json"
-            r = requests.get(data_link)
-            data_links = r.json()
-            list_link = data_links["source"]
-            sampling = data_links["sampling"]
-            asix_data = data_links["order"]
-            for i in range(0,len(list_link)):
-                list_link[i] = url_getdata + list_link[i]
-
             if(train == 1):
+                logging.FileHandler(filename="status/train_status.log", mode='w')
+                logging.basicConfig(filename="status/train_status.log", level=logging.INFO)
                 train_status = True
+
+                named_tuple = time.localtime() 
+                datetime = time.strftime("%Y-%m-%d", named_tuple)
+                index = time.strftime("%Y%m%d%H%M%S", named_tuple)
+                start_time = time.strftime("%Y-%m-%d, %H:%M:%S", named_tuple)
+
                 path_task_manager = "model/task_manage.json"
                 infor_status = {'start':start_time,'ai_status':train_status,'status':"running",'ID':id_device,'error':""}
                 write_json(infor_status,path_task_manager)
-                loss_p,val_loss_p,std,mean,date_error,score_p=model_train.train_model(url_csv=list_link,save_name='P',
-                                                                type_data=0,his=lin,target=lout,asixs=asix_data,
-                                                                id_name=id_device,date_w=index,val_memory=memory_gpu,f_ex=sampling,std_mean=False,gpus=gpus_)
-                loss_flow,val_loss_flow,std,mean,date_error,score_flow=model_train.train_model(url_csv=list_link,save_name='F',
-                                                                        type_data=1,his=lin,target=lout,asixs=asix_data,
-                                                                        id_name=id_device,date_w=index,val_memory=memory_gpu,f_ex=sampling,std_mean=True,gpus=gpus_)
-                    
+
+                url_getdata = url_csv+id_device+"/"
+
+                data_link = url_getdata+"datalink.json"
+                r = requests.get(data_link)
+                data_links = r.json()
+                list_link = data_links["source"]
+                sampling = data_links["sampling"]
+                asix_data = data_links["order"]
+                row_datetime_name = data_links["rowname"][0]
+                row_pressure_name = data_links["rowname"][1]
+                row_flow_name = data_links["rowname"][2]
+                row_data = [row_datetime_name,row_pressure_name,row_flow_name]
+
+                for i in range(0,len(list_link)):
+                    list_link[i] = url_getdata + list_link[i]
+
+                loss_p,val_loss_p,std,mean,date_error=model_train.train_model(url_csv=list_link,save_name='P',
+                                                                type_data=0,row_infor=row_data,his=lin,target=lout,asixs=asix_data,
+                                                                id_name=id_device,date_w=index,batch_size=batch_size,val_memory=memory_gpu,f_ex=sampling,std_mean=False,gpus=gpus_)
+                loss_flow,val_loss_flow,std,mean,date_error=model_train.train_model(url_csv=list_link,save_name='F',
+                                                                        type_data=1,row_infor=row_data,his=lin,target=lout,asixs=asix_data,
+                                                                        id_name=id_device,date_w=index,batch_size=batch_size,val_memory=memory_gpu,f_ex=sampling,std_mean=True,gpus=gpus_)
                 if(len(date_error) > 0):
                     train_status = False
                     infor_status = {'start':start_time,'ai_status':train_status,'status':"failed",'ID':id_device,'error':date_error}
                     write_json(infor_status,path_task_manager)
                     return infor_status
-                        
+
+                name_model_json_file = "model/model_name.json"
+
+                with open(name_model_json_file) as json_file: 
+                    data = json.load(json_file)
+                    model_name = data["name"]
+
+                path_weightfolder = "model/"+id_device+"/"+str(index)        
                 training_info_json_file = "model/about_model.json"
                 model_path = "model/"+id_device
                 path_datetrain = "model/"+id_device+"/"+str(index)
@@ -216,14 +266,24 @@ class FractionsResource(Resource):
                         write_json(data,training_info_json_file) 
 
                 data_out = json.dumps({'std':std,'mean':mean,'date':datetime,'model':model_name,
-                                        'flow':{'loss':loss_flow,'loss_test':val_loss_flow,'score':score_flow},
-                                        'pressure':{'loss':loss_p,'loss_test':val_loss_p,'score':score_p}},cls=NumpyEncoder) 
+                                        'flow':{'loss':loss_flow,'loss_test':val_loss_flow},
+                                        'pressure':{'loss':loss_p,'loss_test':val_loss_p}},cls=NumpyEncoder) 
+                path = "model/"+id_device+"/"+str(index)+"/loss_data.json"                        
                 out_file = open(path, "w")
                 json.dump(data_out, out_file, indent = 6)
 
                 train_status = False
                 infor_status = {'start':start_time,'ai_status':train_status,'status':"done",'ID':id_device,'error':""}
                 write_json(infor_status,path_task_manager)
+                logging.info("Proceed to send the file")
+                try:
+                    send_ftp(folders_path=["model","logs"],zipname="mnt/result_model.zip",
+                            FTP_HOST="hbqweblog.com",
+                            FTP_USER="ftpuser",
+                            FTP_PASS="Thehoang091184")
+                    logging.info("The folder has been sent")
+                except:
+                    logging.error("Folder has not been sent")
             else:
                 path_task_manager = "model/task_manage.json"
                 open_status_infor = open(path_task_manager, "r")
@@ -236,6 +296,11 @@ class FractionsResource(Resource):
             return infor_status
 
 if __name__ == "__main__":
+    date_strftime_format = "%d-%b-%y %H:%M:%S"
+    message_format = "%(asctime)s - %(levelname)s - %(message)s"
+    logging.basicConfig(filename="status/train_status.log",
+                        format=message_format,datefmt=date_strftime_format,
+                        level=logging.INFO)
     q = Queue()
     p = Process(target=start_flaskapp, args=(q,))
     p.start()

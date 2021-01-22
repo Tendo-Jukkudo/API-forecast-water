@@ -48,15 +48,14 @@ def run_prediction(type_feature,his,target,path_weight,url_get,f_ex,means,stds,m
   if(mean_std==True):
     uni_data = (uni_data - data_mean)/data_std
 
-  datetime = df[feature_name[0:1]]
-  datetime = np.array(datetime)
+  datetime = list(map(str,df[0]))
   nb_error = len(d_f.check_datestep(datetime,f_ex))
   if(nb_error == 0):
     data_predict = futures_predict(input_data=uni_data,type_data=type_feature,
                                     path_weights=path_weight,
                                     past_history=int(nb_past),future_target=int(nb_future),
                                     STEP=int(step),mean=data_mean,std=data_std,mean_std=mean_std)
-    Now_time = datetime[datetime.shape[0]-1][0]
+    Now_time = datetime[len(datetime)-1]
     data_json = d_f.datatime_json(Now_time,data_predict,f_ex)
     output = np.array(data_json)
     error_date = d_f.check_datestep(datetime,f_ex)
